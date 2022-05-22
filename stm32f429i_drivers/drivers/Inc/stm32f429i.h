@@ -247,6 +247,16 @@ typedef struct {
  * Clock Disable Macros for STSCFG peripherals
  */
 
-#define STSCFG_PCLK_DIS()          (RCC->APB2ENR &= ~(1<<14))
+#define STSCFG_PCLK_DIS()        (RCC->APB2ENR &= ~(1<<14))
+
+
+// some generic marcos
+
+#define ENABLE           1
+#define DISABLE          0
+#define SET              ENABLE
+#define RESET            DISABLE
+#define GPIO_PIN_SET     SET
+#define GPIO_PIN_RESET   RESET
 
 #endif /* INC_STM32F429I_H_ */
