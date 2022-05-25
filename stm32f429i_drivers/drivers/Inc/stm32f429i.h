@@ -94,8 +94,8 @@ typedef struct {
 	__vo uint32_t ODR;               // GPIO port output data register,                  Address offset: 0x14
 	__vo uint32_t BSRR;              // GPIO port bit set/reset register,                Address offset: 0x18
 	__vo uint32_t LCKR;              // GPIO port configuration lock register,           Address offset: 0x1C
-	__vo uint32_t AFRL;              // GPIO alternate function low register    Address offset: 0x20
-	__vo uint32_t AFRH;              // GPIO alternate function high register , Address offset: 0x24
+	__vo uint32_t AFR[2];            /* GPIO alternate function low register AFR[0],     Address offset: 0x20
+	                                    GPIO alternate function high register AFR[1],    Address offset: 0x24 */
 } GPIO_RegDef_t;
 
 
@@ -135,6 +135,19 @@ typedef struct {
 
 } RCC_RegDef_t;
 
+
+/*
+ * peripheral register definition structure for EXTI
+ */
+typedef struct {
+	__vo uint32_t IMR;           // RCC Backup domain control register,                          Address offset: 0x70
+	__vo uint32_t EMR;            // RCC clock control & status register,                         Address offset: 0x74
+    __vo uint32_t RTSR;          // RCC clock control & status register,                         Address offset: 0x80
+	__vo uint32_t FTSR;     // RCC PLLI2S configuration register,                           Address offset: 0x84
+	__vo uint32_t SWIER;     // RCC PLL configuration register,                              Address offset: 0x88
+	__vo uint32_t PR;        // RCC Dedicated Clock Configuration Register ,                 Address offset: 0x8C
+} EXTI_RegDef_t;
+
 /*
  * peripheral definitions (Peripheral base addresses typecasted to xxx_RegDef_t
  */
@@ -152,6 +165,7 @@ typedef struct {
 
 #define RCC                             ((RCC_RegDef_t*) RCC_BASEADDR)
 
+#define EXIT                            ((RCC_RegDef_t*) EXTI_BASEADDR)
 
 /*
  * Clock Enable Macros for GPIOx peripherals
@@ -250,6 +264,21 @@ typedef struct {
 #define STSCFG_PCLK_DIS()        (RCC->APB2ENR &= ~(1<<14))
 
 
+/*
+ * Macros to reset GPIOx peripherals
+ */
+#define GPIOA_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 0)); (RCC->AHB1RSTR &= ~(1 << 0));} while(0)
+#define GPIOB_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 1)); (RCC->AHB1RSTR &= ~(1 << 1));} while(2)
+#define GPIOC_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 2)); (RCC->AHB1RSTR &= ~(1 << 2));} while(4)
+#define GPIOD_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 3)); (RCC->AHB1RSTR &= ~(1 << 3));} while(5)
+#define GPIOE_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 4)); (RCC->AHB1RSTR &= ~(1 << 4));} while(7)
+#define GPIOF_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 5)); (RCC->AHB1RSTR &= ~(1 << 5));} while(8)
+#define GPIOG_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 6)); (RCC->AHB1RSTR &= ~(1 << 6));} while(0)
+#define GPIOH_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 7)); (RCC->AHB1RSTR &= ~(1 << 7));} while(0)
+#define GPIOI_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 8)); (RCC->AHB1RSTR &= ~(1 << 8));} while(0)
+#define GPIOJ_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 9)); (RCC->AHB1RSTR &= ~(1 << 9));} while(0)
+#define GPIOK_REG_RESET()        do {(RCC->AHB1RSTR |= (1 << 10)); (RCC->AHB1RSTR &= ~(1 << 10));} while(0)
+
 // some generic marcos
 
 #define ENABLE           1
@@ -258,5 +287,10 @@ typedef struct {
 #define RESET            DISABLE
 #define GPIO_PIN_SET     SET
 #define GPIO_PIN_RESET   RESET
+
+
+#include "stm32f429zi_gpio_driver.h"
+
+
 
 #endif /* INC_STM32F429I_H_ */
