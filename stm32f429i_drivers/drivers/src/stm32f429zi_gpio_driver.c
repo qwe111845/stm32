@@ -25,36 +25,59 @@
  *
  * @Note              - none
  */
-void GPIO_PeriClocckControl(GPIO_RegDef_t *pGPIOx, uint8_t enOrDi) {
+void GPIO_PeriClockControl(GPIO_RegDef_t *pGPIOx, uint8_t enOrDi) {
 
 	if (enOrDi == ENABLE) {
 
 		if (pGPIOx == GPIOA) {
-			GPIOA_PCLOCK_EN();
+			GPIOA_PCLK_EN();
 		} else if (pGPIOx == GPIOB) {
-            GPIOB_PCLOCK_EN();
+            GPIOB_PCLK_EN();
 		} else if (pGPIOx == GPIOC) {
-            GPIOC_PCLOCK_EN();
+            GPIOC_PCLK_EN();
 		} else if (pGPIOx == GPIOD) {
-            GPIOD_PCLOCK_EN();
+            GPIOD_PCLK_EN();
 		} else if (pGPIOx == GPIOE) {
-            GPIOE_PCLOCK_EN();
+            GPIOE_PCLK_EN();
 		} else if (pGPIOx == GPIOF) {
-            GPIOF_PCLOCK_EN();
+            GPIOF_PCLK_EN();
 		} else if (pGPIOx == GPIOG) {
-            GPIOG_PCLOCK_EN();
+            GPIOG_PCLK_EN();
 		} else if (pGPIOx == GPIOH) {
-            GPIOH_PCLOCK_EN();
+            GPIOH_PCLK_EN();
 		} else if (pGPIOx == GPIOI) {
-            GPIOI_PCLOCK_EN();
+            GPIOI_PCLK_EN();
 		} else if (pGPIOx == GPIOJ) {
-            GPIOJ_PCLOCK_EN();
+            GPIOJ_PCLK_EN();
 		} else if (pGPIOx == GPIOK) {
-            GPIOK_PCLOCK_EN();
+            GPIOK_PCLK_EN();
 		}
 
 	} else {
 
+		if (pGPIOx == GPIOA) {
+			GPIOA_PCLK_DIS();
+		} else if (pGPIOx == GPIOB) {
+			GPIOB_PCLK_DIS();
+		} else if (pGPIOx == GPIOC) {
+			GPIOC_PCLK_DIS();
+		} else if (pGPIOx == GPIOD) {
+			GPIOD_PCLK_DIS();
+		} else if (pGPIOx == GPIOE) {
+			GPIOE_PCLK_DIS();
+		} else if (pGPIOx == GPIOF) {
+			GPIOF_PCLK_DIS();
+		} else if (pGPIOx == GPIOG) {
+			GPIOG_PCLK_DIS();
+		} else if (pGPIOx == GPIOH) {
+			GPIOH_PCLK_DIS();
+		} else if (pGPIOx == GPIOI) {
+			GPIOI_PCLK_DIS();
+		} else if (pGPIOx == GPIOJ) {
+			GPIOJ_PCLK_DIS();
+		} else if (pGPIOx == GPIOK) {
+			GPIOK_PCLK_DIS();
+		}
 	}
 
 }
@@ -80,6 +103,9 @@ void GPIO_Init(GPIO_Handle_t *pGPIOHandle) {
 
 	uint32_t temp = 0;
 
+	// Enable the peripheral clock
+	GPIO_PeriClockControl(pGPIOHandle->pGPIO, ENABLE);
+
 	// 1. configure the mode of GPIO pin
 
 	if (pGPIOHandle->GPIO_PinConfig.GPIO_PinMode <= GPIO_MODE_ANALOG) {
@@ -95,19 +121,34 @@ void GPIO_Init(GPIO_Handle_t *pGPIOHandle) {
 		if (pGPIOHandle->GPIO_PinConfig.GPIO_PinMode == GPIO_MODE_IT_FT) {
 
 			// 1. configure the FTSR
+			EXTI->FTSR |= (1 << pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber);
+			// clear the corresponding RTSR bit
+			EXTI->RTSR &= ~(1 << pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber);
+
 		} else if (pGPIOHandle->GPIO_PinConfig.GPIO_PinMode == GPIO_MODE_IT_RT) {
 
 			// 1. configure the RTSR
+			EXTI->RTSR |= (1 << pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber);
+			// clear the corresponding FTSR bit
+			EXTI->FTSR &= ~(1 << pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber);
 
 		} else if (pGPIOHandle->GPIO_PinConfig.GPIO_PinMode == GPIO_MODE_IT_RFT) {
 
 			// 1. configure both FTSR and FTSR
-
+			EXTI->FTSR |= (1 << pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber);
+			EXTI->RTSR |= (1 << pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber);
 		}
 
 		// 2. configure the GPIO port selection in SYSCFG_EXTICR
+		uint8_t EXTICRIndex    = pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber / 4;
+		uint8_t EXTICRPosition = pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber % 4;
+		uint8_t portCode = GPIO_BASSADDR_TO_CODE(pGPIOHandle->pGPIO);
+		SYSCFG_PCLK_EN();
+		SYSCFG->EXTICR[EXTICRIndex] = portCode << (EXTICRPosition * 4);
+
 
 		// 3. enable the EXTI interrupt delivery using IMR
+		EXTI->IMR |= (1 << pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber);
 
 	}
 
@@ -315,19 +356,85 @@ void GPIO_ToggleOutputPin(GPIO_RegDef_t *pGPIOx, uint8_t pinNumber) {
  */
 
 /*********************************************************************
- * @fn      		  - GPIO_IRQConfig
+ * @fn      		  - GPIO_IRQInterruptConfig
  *
  * @brief             - This function changes configuration of IRQ
  *
  * @param[in]         - IRQ number
- * @param[in]         - IRQ priority
  * @param[in]         - enable or disable interrupt
+ * @param[in]         -
  *
  * @return            - none
  *
  * @Note              - none
  */
-void GPIO_IRQConfig(uint8_t IRQNumber, uint8_t IRQPriority, uint8_t enOrDi) {
+void GPIO_IRQInterruptConfig(uint8_t IRQNumber, uint8_t enOrDi) {
+
+	// 根據 NVIC 的 vector table 找到最多實作了多少 interrupt (stm32f429xx 為 90)
+	if (enOrDi == ENABLE) {
+		if (IRQNumber <= 31) {
+
+			// program ISER0 register
+			*NVIC_ISER0 |= (1 << IRQNumber);
+
+		} else if (IRQNumber > 31 && IRQNumber <= 64) {
+
+			// program ISER1 register
+			*NVIC_ISER1 |= (1 << (IRQNumber % 32));
+
+		} else if (IRQNumber > 64 && IRQNumber <= 96) {
+
+			// program ISER2 register
+			*NVIC_ISER2 |= (1 << (IRQNumber % 64));
+
+		}
+	} else {
+
+		if (IRQNumber <= 31) {
+
+			// program ICER0 register
+			*NVIC_ICER0 |= (1 << IRQNumber);
+
+		} else if (IRQNumber > 31 && IRQNumber <= 64) {
+
+			// program ICER1 register
+			*NVIC_ICER1 |= (1 << (IRQNumber % 32));
+
+		} else if (IRQNumber > 64 && IRQNumber <= 96) {
+
+			// program ICER2 register
+			*NVIC_ICER2 |= (1 << (IRQNumber % 64));
+
+		}
+	}
+
+}
+
+
+/*********************************************************************
+ * @fn      		  - GPIO_IRQPriortyConfig
+ *
+ * @brief             - This function changes priority of IRQ
+ *
+ * @param[in]         - IRQ number
+ * @param[in]         - IRQ priority
+ * @param[in]         -
+ *
+ * @return            - none
+ *
+ * @Note              - none
+ */
+void GPIO_IRQPriorityConfig(uint8_t IRQNumber, uint32_t IRQPriority) {
+
+	// 1. first lets find out the IPR register
+	uint8_t IPRx = IRQNumber / 4;
+	uint8_t IPRxSection = IRQNumber % 4;
+
+    // IPR 每個 PRI 的前四bit 都沒有作用 所以要 8-PR BITS
+	uint8_t shift_amount = (8 * IPRxSection) + (8 - NO_PR_BITS_IMPLEMENTED);
+
+    // IRQPriority 0-255 在 Cortex-M4 Devices Generic User Guide 223頁 IPR
+	*(NVIC_PR_BASE_ADDR + IPRx) |= (IRQPriority << shift_amount);
 
 }
 
@@ -346,5 +453,12 @@ void GPIO_IRQConfig(uint8_t IRQNumber, uint8_t IRQPriority, uint8_t enOrDi) {
  * @Note              - none
  */
 void GPIO_IRQHandling(uint8_t pinNumber) {
+
+	// clear the EXTI pending-register register corresponding to the pin number
+
+	if (EXTI->PR & (1 << pinNumber)) {
+		// clear
+		EXTI->PR |= (1 << pinNumber);
+	}
 
 }
