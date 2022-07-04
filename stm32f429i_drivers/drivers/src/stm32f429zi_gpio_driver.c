@@ -142,7 +142,7 @@ void GPIO_Init(GPIO_Handle_t *pGPIOHandle) {
 		// 2. configure the GPIO port selection in SYSCFG_EXTICR
 		uint8_t EXTICRIndex    = pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber / 4;
 		uint8_t EXTICRPosition = pGPIOHandle->GPIO_PinConfig.GPIO_PinNumber % 4;
-		uint8_t portCode = GPIO_BASSADDR_TO_CODE(pGPIOHandle->pGPIO);
+		uint8_t portCode = GPIO_BASEADDR_TO_CODE(pGPIOHandle->pGPIO);
 		SYSCFG_PCLK_EN();
 		SYSCFG->EXTICR[EXTICRIndex] = portCode << (EXTICRPosition * 4);
 
