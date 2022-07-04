@@ -247,7 +247,36 @@ void SPI_SendData(SPI_RegDef_t *pSPIx, uint8_t *pTxBuffer, uint32_t length) {
  *
  * @Note              - none
  */
-void SPI_ReceiveData(SPI_RegDef_t *pSPIx, uint8_t *pRxBuffer, uint32_t * length);
+void SPI_ReceiveData(SPI_RegDef_t *pSPIx, uint8_t *pRxBuffer, uint32_t length) {
+
+	// Check data length is greater than zero
+		while (length > 0) {
+
+			// 1. Wait until RXNE is set
+			while (SPI_GetFlagStatus(pSPIx, SPI_RXNE_FLAG) == FLAG_RESET);
+
+			// 2. Check the DFF bit in CR1
+			if ((pSPIx->CR1 & (1 << SPI_CR1_DFF))) {
+
+				// 16 bit DFF
+				// 1. load the data from DR to Rxbuffer address
+				*((uint16_t *)pRxBuffer) = pSPIx->DR;
+				length--;
+				length--;
+				(uint16_t *)pRxBuffer++;
+
+			} else {
+
+				// 8 bit DFF
+				*(pRxBuffer) = pSPIx->DR;
+				length--;
+				pRxBuffer++;
+
+			}
+
+		}
+
+}
 
 
 /*
