@@ -6,6 +6,9 @@
  */
 #include "stm32f429zi_i2c_driver.h"
 
+uint16_t AHB_PreScaler[8] = { 2, 4, 8, 16, 64, 128, 256, 512};
+uint16_t APB1_PreScaler[8] = { 2, 4, 8, 16};
+
 void I2C_PeriClockControl(I2C_RegDef_t *pI2Cx, uint8_t enOrDi) {
     if (enOrDi == ENABLE) {
 
@@ -31,10 +34,97 @@ void I2C_PeriClockControl(I2C_RegDef_t *pI2Cx, uint8_t enOrDi) {
     }
 }
 
+// TODO
+uint32_t RCC_GetPLLOutputClock(void) {
+
+}
+
+uint32_t RCC_GetPCLK1Value(void) {
+    uint32_t  pClock, systemClock = 0;
+    uint8_t  clockSource, temp, ahbp, apb1p;
+
+    clockSource = (RCC->CFGR >> 2) & 0x3;
+
+    if (clockSource == 0) {
+        systemClock = 16000000;
+    } else if (clockSource == 1) {
+        systemClock = 8000000;
+    } else if (clockSource == 2) {
+        systemClock = RCC_GetPLLOutputClock();
+    }
+
+    // ahb
+    temp = ((RCC->CFGR >> 4) & 0xF);
+
+    if (temp < 8) {
+        ahbp = 1;
+    } else {
+        ahbp = AHB_PreScaler[temp - 8];
+    }
+
+    // apb1
+    temp = ((RCC->CFGR >> 10) & 0x7);
+
+    if (temp < 4) {
+        apb1p = 1;
+    } else {
+        apb1p = APB1_PreScaler[temp - 4];
+    }
+    pClock = (systemClock / ahbp) / apb1p;
+
+    return  pClock;
+
+}
 /*
  * Init and De-init
  */
 void I2C_Init(I2C_Handle_t *pI2CHandle) {
+
+    uint32_t tempReg = 0;
+
+    // ack control bit
+    tempReg |= pI2CHandle->I2C_Config.I2C_AckControl << 10;
+
+    pI2CHandle->pI2C->CR1 = tempReg;
+
+    // configure the FREQ field of CR2
+    tempReg = 0;
+    tempReg = RCC_GetPCLK1Value() / 1000000U;
+    pI2CHandle->pI2C->CR2 = (tempReg & 0x3F);
+
+    // program the device own address
+    tempReg |= pI2CHandle->I2C_Config.I2C_DeviceAddress << 1;
+    tempReg |= (1 << 14);
+    pI2CHandle->pI2C->OAR1 = tempReg;
+
+    // CCR calculations
+    uint16_t  ccr_value = 0;
+    tempReg = 0;
+
+    if (pI2CHandle->I2C_Config.I2C_SCLSpeed <= I2C_SCL_SPEED_SM) {
+
+        // mode is standard mode
+        ccr_value = RCC_GetPCLK1Value() / (2 * pI2CHandle->I2C_Config.I2C_SCLSpeed);
+        tempReg |= ccr_value & 0xFFF;
+
+    } else {
+
+        // mode is fast mode
+        tempReg |= (1 << 15);
+        tempReg |= (pI2CHandle->I2C_Config.I2C_FMDutyCycle << 14);
+        if (pI2CHandle->I2C_Config.I2C_FMDutyCycle == I2C_FM_DUTY_2) {
+            ccr_value = RCC_GetPCLK1Value() / (3 * pI2CHandle->I2C_Config.I2C_SCLSpeed);
+        } else {
+            ccr_value = RCC_GetPCLK1Value() / (25 * pI2CHandle->I2C_Config.I2C_SCLSpeed);
+
+        }
+
+        tempReg |= (ccr_value & 0xFFF);
+
+    }
+
+    pI2CHandle->pI2C->CCR = tempReg;
+
 }
 void I2C_DeInit(I2C_RegDef_t *pI2Cx) {
 
