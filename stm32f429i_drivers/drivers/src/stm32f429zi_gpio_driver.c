@@ -412,7 +412,7 @@ void GPIO_IRQInterruptConfig(uint8_t IRQNumber, uint8_t enOrDi) {
 
 
 /*********************************************************************
- * @fn      		  - GPIO_IRQPriortyConfig
+ * @fn      		  - GPIO_IRQPriorityConfig
  *
  * @brief             - This function changes priority of IRQ
  *
