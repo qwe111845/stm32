@@ -11,10 +11,10 @@
  * Configuration structure for I2Cx peripheral
  */
 typedef struct {
-    uint32_t I2C_SCLSpeed;   // MSTR possible values from @I2C_DeviceMode
-    uint8_t  I2C_DeviceAddress;     // BIDIMODE possible values from @I2C_BusConfig
-    uint8_t  I2C_AckControl;     // BR[2:0] possible values from @I2C_SclkSpeed
-    uint8_t  I2C_FMDutyCycle;          // DFF possible values from @I2C_DFF
+    uint32_t I2C_SCLSpeed;          // SCL speed possible values from @I2C_SCLSpeed
+    uint8_t  I2C_DeviceAddress;     // Slave device address
+    uint8_t  I2C_AckControl;        // possible values from @I2C_AckControl
+    uint8_t  I2C_FMDutyCycle;       // possible values from @I2C_FMDutyCycle
 } I2C_Config_t;
 
 
@@ -46,6 +46,11 @@ typedef struct {
 #define I2C_FM_DUTY_2    0
 #define I2C_FM_DUTY_16_9 1
 
+/*
+ * @I2C read write bit
+ */
+#define I2C_READ     0
+#define I2C_WRITE    1
 
 /*
  * @I2C related status flags definitions
@@ -55,7 +60,7 @@ typedef struct {
 #define I2C_FLAG_BTF         (1 << I2C_SR1_BTF)
 #define I2C_FLAG_STOPF       (1 << I2C_SR1_STOPF)
 #define I2C_FLAG_RXNE        (1 << I2C_SR1_RXNE)
-#define I2C_FLAG_TXE         (1 << I2C_SR1_TxE)
+#define I2C_FLAG_TXE         (1 << I2C_SR1_TXE)
 #define I2C_FLAG_BERR        (1 << I2C_SR1_BERR)
 #define I2C_FLAG_ARLO        (1 << I2C_SR1_ARLO)
 #define I2C_FLAG_AF          (1 << I2C_SR1_AF)
@@ -63,6 +68,10 @@ typedef struct {
 #define I2C_FLAG_PECERR      (1 << I2C_SR1_PECERR)
 #define I2C_FLAG_TIME_OUT    (1 << I2C_SR1_TIME_OUT)
 #define I2C_FLAG_SMB_ALERT   (1 << I2C_SR1_SMB_ALERT)
+
+
+#define I2C_ENABLE_SR     SET
+#define I2C_DISABLE_SR  RESET
 
 /********************************************************************************************
  *                             APIs supported by this driver
@@ -84,8 +93,8 @@ void I2C_DeInit(I2C_RegDef_t *pI2Cx);
 /*
  * Data Send and Receive
  */
-void I2C_MasterSendData(I2C_Handle_t *pI2CHandle, uint8_t *pTxBuffer, uint32_t length, uint8_t slaveAddress);
-void I2C_ReceiveData(I2C_Handle_t *pI2CHandle, uint8_t *pRxBuffer, uint32_t length);
+void I2C_MasterSendData(I2C_Handle_t *pI2CHandle, uint8_t *pTxBuffer, uint32_t length, uint8_t slaveAddress, uint8_t SR);
+void I2C_MasterReceiveData(I2C_Handle_t *pI2CHandle, uint8_t *pRxBuffer, uint32_t length, uint8_t slaveAddress, uint8_t SR);
 
 
 /*
@@ -102,5 +111,5 @@ void I2C_PeripheralControl(I2C_RegDef_t *pI2Cx, uint8_t enOrDi);
 void I2C_SSIConfig(I2C_RegDef_t *pI2Cx, uint8_t enOrDi);
 void I2C_SSOEConfig(I2C_RegDef_t *pI2Cx, uint8_t enOrDi);
 uint8_t I2C_GetFlagStatus(I2C_RegDef_t *pI2Cx, uint32_t FlagName);
-
+void I2C_ManageAcking(I2C_RegDef_t *pI2Cx, uint8_t enOrDi);
 #endif //STM32F429I_DRIVERS_STM32F429ZI_I2C_DRIVER_H
