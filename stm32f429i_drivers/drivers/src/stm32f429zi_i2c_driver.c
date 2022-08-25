@@ -9,7 +9,8 @@
 uint16_t AHB_PreScaler[8] = { 2, 4, 8, 16, 64, 128, 256, 512};
 uint16_t APB1_PreScaler[8] = { 2, 4, 8, 16};
 static void I2C_GenerateStartCondition(I2C_RegDef_t *pI2Cx);
-static void I2C_ExecuteAddressPhase(I2C_RegDef_t *pI2Cx, uint8_t slaveAddress);
+static void I2C_ExecuteAddressPhaseWrite(I2C_RegDef_t *pI2Cx, uint8_t slaveAddress);
+static void I2C_ExecuteAddressPhaseRead(I2C_RegDef_t *pI2Cx, uint8_t slaveAddress);
 static void I2C_ClearADDRFlag(I2C_RegDef_t *pI2Cx);
 static void I2C_GenerateStopCondition(I2C_RegDef_t *pI2Cx);
 
@@ -20,10 +21,18 @@ static void I2C_GenerateStartCondition(I2C_RegDef_t *pI2Cx) {
 
 }
 
-static void I2C_ExecuteAddressPhase(I2C_RegDef_t *pI2Cx, uint8_t slaveAddress) {
+static void I2C_ExecuteAddressPhaseWrite(I2C_RegDef_t *pI2Cx, uint8_t slaveAddress) {
 
     slaveAddress = slaveAddress << 1;
     slaveAddress &= ~(1);
+    pI2Cx->DR = slaveAddress;
+
+}
+
+static void I2C_ExecuteAddressPhaseRead(I2C_RegDef_t *pI2Cx, uint8_t slaveAddress) {
+
+    slaveAddress = slaveAddress << 1;
+    slaveAddress |= 1;
     pI2Cx->DR = slaveAddress;
 
 }
@@ -41,6 +50,7 @@ static void I2C_GenerateStopCondition(I2C_RegDef_t *pI2Cx) {
 }
 
 void I2C_PeriClockControl(I2C_RegDef_t *pI2Cx, uint8_t enOrDi) {
+
     if (enOrDi == ENABLE) {
 
         if (pI2Cx == I2C1) {
@@ -50,7 +60,6 @@ void I2C_PeriClockControl(I2C_RegDef_t *pI2Cx, uint8_t enOrDi) {
         } else if (pI2Cx == I2C3) {
             I2C3_PCLK_EN();
         }
-
 
     } else {
 
@@ -66,9 +75,11 @@ void I2C_PeriClockControl(I2C_RegDef_t *pI2Cx, uint8_t enOrDi) {
 }
 
 // TODO
-uint32_t RCC_GetPLLOutputClock(void) {
-
-}
+//uint32_t RCC_GetPLLOutputClock(void) {
+//
+//
+//
+//}
 
 uint32_t RCC_GetPCLK1Value(void) {
     uint32_t  pClock, systemClock = 0;
@@ -81,7 +92,7 @@ uint32_t RCC_GetPCLK1Value(void) {
     } else if (clockSource == 1) {
         systemClock = 8000000;
     } else if (clockSource == 2) {
-        systemClock = RCC_GetPLLOutputClock();
+        // systemClock = RCC_GetPLLOutputClock();
     }
 
     // ahb
@@ -112,6 +123,9 @@ uint32_t RCC_GetPCLK1Value(void) {
 void I2C_Init(I2C_Handle_t *pI2CHandle) {
 
     uint32_t tempReg = 0;
+
+    // Enalbe the clock for the I2Cx peripheral
+    I2C_PeriClockControl(pI2CHandle->pI2C, ENABLE);
 
     // ack control bit
     tempReg |= pI2CHandle->I2C_Config.I2C_AckControl << 10;
@@ -147,7 +161,6 @@ void I2C_Init(I2C_Handle_t *pI2CHandle) {
             ccr_value = RCC_GetPCLK1Value() / (3 * pI2CHandle->I2C_Config.I2C_SCLSpeed);
         } else {
             ccr_value = RCC_GetPCLK1Value() / (25 * pI2CHandle->I2C_Config.I2C_SCLSpeed);
-
         }
 
         tempReg |= (ccr_value & 0xFFF);
@@ -174,7 +187,7 @@ void I2C_DeInit(I2C_RegDef_t *pI2Cx) {
 /*
  * Data Send and Receive
  */
-void I2C_MasterSendData(I2C_Handle_t *pI2CHandle, uint8_t *pTxBuffer, uint32_t length, uint8_t slaveAddress) {
+void I2C_MasterSendData(I2C_Handle_t *pI2CHandle, uint8_t *pTxBuffer, uint32_t length, uint8_t slaveAddress, uint8_t SR) {
 
     // 1. Generate the START condition
     I2C_GenerateStartCondition(pI2CHandle->pI2C);
@@ -184,7 +197,7 @@ void I2C_MasterSendData(I2C_Handle_t *pI2CHandle, uint8_t *pTxBuffer, uint32_t l
     while (!I2C_GetFlagStatus(pI2CHandle->pI2C, I2C_FLAG_SB));
 
     // 3. Send the address of the slave with r/nw bit set to w(0) (total 8 bits)
-    I2C_ExecuteAddressPhase(pI2CHandle->pI2C, slaveAddress);
+    I2C_ExecuteAddressPhaseWrite(pI2CHandle->pI2C, slaveAddress);
 
     // 4. Confirm that address phase is complete by checking the ADDR flag in tec SR1
     while (!I2C_GetFlagStatus(pI2CHandle->pI2C, I2C_FLAG_ADDR));
@@ -211,12 +224,84 @@ void I2C_MasterSendData(I2C_Handle_t *pI2CHandle, uint8_t *pTxBuffer, uint32_t l
 
     // 8. Generate STOP condition and master doesn't need to wait for the completion of stop condition.
     //    Note: Generating STOP, automatically clears the BTF
-    I2C_GenerateStopCondition(pI2CHandle->pI2C);
+    if (SR == I2C_DISABLE_SR) {
+        I2C_GenerateStopCondition(pI2CHandle->pI2C);
+    }
 
 }
 
-void I2C_ReceiveData(I2C_Handle_t *pI2CHandle, uint8_t *pRxBuffer, uint32_t length);
+void I2C_MasterReceiveData(I2C_Handle_t *pI2CHandle, uint8_t *pRxBuffer, uint32_t length, uint8_t slaveAddress, uint8_t SR) {
 
+    // 1. Generate the START condition
+    I2C_GenerateStartCondition(pI2CHandle->pI2C);
+
+    // 2. confirm that start generation is completed by checking the SB flag in the SR1
+    //    Note: Until SB is cleared SCL will be stretched (pull to low)
+    while (!I2C_GetFlagStatus(pI2CHandle->pI2C, I2C_FLAG_SB));
+
+    // 3. Send the address of the slave with r/nw bit set to r(1) (total 8 bits)
+    I2C_ExecuteAddressPhaseRead(pI2CHandle->pI2C, slaveAddress);
+
+    // 4. Wait until address phase is complete by checking the ADDR flag in tec SR1
+    while (!I2C_GetFlagStatus(pI2CHandle->pI2C, I2C_FLAG_ADDR));
+
+
+    if (length == 1) {
+
+        // Disable Acking
+        I2C_ManageAcking(pI2CHandle->pI2C, I2C_ACK_DISABLE);
+
+        // Clear the ADDR flag
+        I2C_ClearADDRFlag(pI2CHandle->pI2C);
+
+        // Wait until RxNE becomes 1
+        while (!I2C_GetFlagStatus(pI2CHandle->pI2C, I2C_FLAG_RXNE));
+
+        // If no repeated start generate STOP condition
+        if (SR == I2C_DISABLE_SR) {
+            I2C_GenerateStopCondition(pI2CHandle->pI2C);
+        }
+
+        // Read data in to buffer
+        *pRxBuffer = pI2CHandle->pI2C->DR;
+
+    }
+
+    if (length > 1){
+
+        // Clear the ADDR flag according to its software sequence
+        I2C_ClearADDRFlag(pI2CHandle->pI2C);
+
+        // Wait until RxNE becomes 1
+        while (!I2C_GetFlagStatus(pI2CHandle->pI2C, I2C_FLAG_RXNE));
+
+        // 6. Receive the data until Len becomes 0
+        for (uint32_t i = length; i>0; i++) {
+
+            if (i == 2) {
+
+                // Disable Acking
+                I2C_ManageAcking(pI2CHandle->pI2C, I2C_ACK_DISABLE);
+
+                // If no repeated start generate STOP condition
+                if (SR == I2C_DISABLE_SR) {
+                    I2C_GenerateStopCondition(pI2CHandle->pI2C);
+                }
+
+            }
+            *pRxBuffer = pI2CHandle->pI2C->DR;
+            pRxBuffer++;
+
+        }
+
+    }
+
+    // Re-enable ACKing
+    if (pI2CHandle->I2C_Config.I2C_AckControl == I2C_ACK_ENABLE) {
+        I2C_ManageAcking(pI2CHandle->pI2C, I2C_ACK_ENABLE);
+    }
+
+}
 
 /*
  * IRQ Configuration and ISR handling
@@ -298,4 +383,16 @@ uint8_t I2C_GetFlagStatus(I2C_RegDef_t *pSPIx, uint32_t FlagName) {
     }
 
     return FLAG_RESET;
+}
+
+void I2C_ManageAcking(I2C_RegDef_t *pI2Cx, uint8_t enOrDi) {
+    if (enOrDi == I2C_ACK_ENABLE) {
+
+        pI2Cx->CR1 |= (1 << I2C_CR1_ACK);
+
+    } else {
+
+        pI2Cx->CR1 &= ~(1 << I2C_CR1_ACK);
+
+    }
 }
